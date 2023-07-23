@@ -1,0 +1,52 @@
+[project]
+name = "henon2midi"
+version = "0.0.1"
+description = "This application generates midi bifurcation diagrams generated from generated logistic map data."
+readme = "README.md"
+authors = [
+    {name = "Josh Symes"}
+]
+dependencies = [
+    "mido",
+    "click",
+    "python-rtmidi",
+    "colorama"
+]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+]
+
+[project.optional-dependencies]
+test = [
+    "pytest",
+    "pytest-cov",
+    "pytest-mock",
+    "coverage",
+    "flake8",
+    "black",
+    "isort",
+    "mypy",
+    "types-setuptools",
+    "pre-commit"
+]
+
+[project.scripts]
+henon2midi = "henon2midi.__main__:main"
+
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+exclude = ["docs*", "tests*"]
+
+[tool.coverage.run]
+source = ["henon2midi"]
+
+[tool.pytest.ini_options]
+addopts = "--cov henon2midi --cov-report term-missing --cov-report xml --cov-report html --cov-branch"
+
+[tool.pylint]
+max-line-length = 120
