@@ -1,8 +1,11 @@
 from time import sleep, time
+from typing import Optional
 
 from mido import (
     Message,
+    MetaMessage,
     MidiFile,
+    MidiTrack,
     bpm2tempo,
     get_output_names,
     open_output,
@@ -47,5 +50,14 @@ def get_default_midi_output_name() -> str:
     return output_names[0]
 
 
-def save_midi_file(midi: MidiFile, filename: str):
-    midi.save(filename)
+def create_midi_file_from_messages(
+    messages: list[Message], ticks_per_beat: int = 960, bpm: Optional[int] = None
+) -> MidiFile:
+    mid = MidiFile(ticks_per_beat=ticks_per_beat)
+    track = MidiTrack()
+    mid.tracks.append(track)
+    if bpm is not None:
+        tempo = bpm2tempo(bpm)
+        track.append(MetaMessage("set_tempo", tempo=tempo))
+    track.extend(messages)
+    return mid

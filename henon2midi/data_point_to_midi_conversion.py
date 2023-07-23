@@ -10,6 +10,10 @@ def create_midi_messages_from_data_point(
     clip: bool = False,
     x_midi_parameter_mappings: set[str] = {"note"},
     y_midi_parameter_mappings: set[str] = {"velocity", "pan"},
+    source_range_x: tuple[float, float] = (-1.0, 1.0),
+    source_range_y: tuple[float, float] = (-1.0, 1.0),
+    midi_range_x: tuple[int, int] = (0, 127),
+    midi_range_y: tuple[int, int] = (0, 127),
 ) -> list[Message]:
     x = datapoint[0]
     y = datapoint[1]
@@ -21,16 +25,24 @@ def create_midi_messages_from_data_point(
     }
 
     for x_midi_parameter_mapping in x_midi_parameter_mappings:
-        if (x > 1.0 or x < -1.0) and not clip:
-            midi_values[x_midi_parameter_mapping] = 0
+        if (x > source_range_x[1] or x < source_range_x[0]) and not clip:
+            midi_values["velocity"] = 0
         else:
-            midi_values[x_midi_parameter_mapping] = midi_value_from_data_point_value(x)
+            midi_values[x_midi_parameter_mapping] = midi_value_from_data_point_value(
+                x,
+                source_range=source_range_x,
+                midi_range=midi_range_x,
+            )
 
     for y_midi_parameter_mapping in y_midi_parameter_mappings:
-        if (y > 1.0 or y < -1.0) and not clip:
-            midi_values[y_midi_parameter_mapping] = 0
+        if (y > source_range_y[1] or y < source_range_y[0]) and not clip:
+            midi_values["velocity"] = 0
         else:
-            midi_values[y_midi_parameter_mapping] = midi_value_from_data_point_value(y)
+            midi_values[y_midi_parameter_mapping] = midi_value_from_data_point_value(
+                y,
+                source_range=source_range_y,
+                midi_range=midi_range_y,
+            )
 
     note_on = Message(
         "note_on",
@@ -85,14 +97,14 @@ def create_midi_messages_from_data_point(
 
 def midi_value_from_data_point_value(
     x: float,
-    data_point_range: tuple[float, float] = (-1.0, 1.0),
+    source_range: tuple[float, float] = (-1.0, 1.0),
     midi_range: tuple[int, int] = (0, 127),
 ) -> int:
     min_midi_value = midi_range[0]
     max_midi_value = midi_range[1]
 
-    min_data_point_value = data_point_range[0]
-    max_data_point_value = data_point_range[1]
+    min_data_point_value = source_range[0]
+    max_data_point_value = source_range[1]
 
     return round(
         rescale_number_to_range(

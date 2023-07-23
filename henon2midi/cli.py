@@ -81,6 +81,20 @@ from henon2midi.midi import (
     type=str,
 )
 @click.option(
+    "--x-midi-value-range",
+    default="0,127",
+    help="The MIDI value range for the x data point.",
+    show_default=True,
+    type=str,
+)
+@click.option(
+    "--y-midi-value-range",
+    default="0,127",
+    help="The MIDI value range for the y data point.",
+    show_default=True,
+    type=str,
+)
+@click.option(
     "-r",
     "--starting-radius",
     default=0.0,
@@ -117,6 +131,12 @@ from henon2midi.midi import (
     help="Clip the MIDI messages to the range of the MIDI parameter.",
     type=bool,
 )
+@click.option(
+    "--continual-loop",
+    is_flag=True,
+    help="Loop back to start when Henon data is exhausted.",
+    type=bool,
+)
 def cli(
     a_parameter: float,
     iterations_per_orbit: int,
@@ -126,12 +146,15 @@ def cli(
     notes_per_beat: int,
     x_midi_parameter_mappings: str,
     y_midi_parameter_mappings: str,
+    x_midi_value_range: str,
+    y_midi_value_range: str,
     starting_radius: float,
     radial_step: float,
     out: str,
     draw_ascii_art: bool,
     sustain: bool,
     clip: bool,
+    continual_loop: bool,
 ):
     """An application that generates midi from procedurally generated Henon mappings."""
 
@@ -150,6 +173,26 @@ def cli(
     notes_per_beat = notes_per_beat
     x_midi_parameter_mappings_set = set(x_midi_parameter_mappings.split(","))
     y_midi_parameter_mappings_set = set(y_midi_parameter_mappings.split(","))
+    x_midi_value_range_split = x_midi_value_range.split(",")
+    if len(x_midi_value_range_split) != 2:
+        raise ValueError(
+            "x_midi_value_range must be a comma separated list of 2 values"
+        )
+    else:
+        midi_range_x = (
+            int(x_midi_value_range_split[0]),
+            int(x_midi_value_range_split[1]),
+        )
+    y_midi_value_range_split = y_midi_value_range.split(",")
+    if len(y_midi_value_range_split) != 2:
+        raise ValueError(
+            "y_midi_value_range must be a comma separated list of 2 values"
+        )
+    else:
+        midi_range_y = (
+            int(y_midi_value_range_split[0]),
+            int(y_midi_value_range_split[1]),
+        )
     starting_radius = starting_radius
     radial_step = radial_step
     draw_ascii_art = draw_ascii_art
@@ -166,6 +209,8 @@ def cli(
         f"\tnotes per beat: {notes_per_beat}\n"
         f"\tx midi parameter mappings: {x_midi_parameter_mappings_set}\n"
         f"\ty midi parameter mappings: {y_midi_parameter_mappings_set}\n"
+        f"\tx midi value range: {midi_range_x}\n"
+        f"\ty midi value range: {midi_range_y}\n"
         f"\tstarting radius: {starting_radius}\n"
         f"\tradial step: {radial_step}\n"
         f"\tout: {midi_output_file_name}\n"
@@ -191,6 +236,10 @@ def cli(
             clip=clip,
             x_midi_parameter_mappings_set=x_midi_parameter_mappings_set,
             y_midi_parameter_mappings_set=y_midi_parameter_mappings_set,
+            source_range_x=(-1.0, 1.0),
+            source_range_y=(-1.0, 1.0),
+            midi_range_x=midi_range_x,
+            midi_range_y=midi_range_y,
         )
         mid.save(midi_output_file_name)
 
@@ -200,7 +249,6 @@ def cli(
         ascii_art_canvas = AsciiArtCanvas(
             ascii_art_canvas_width, ascii_art_canvas_height
         )
-    art_string = ""
 
     if midi_output_name:
         hennon_mappings_generator = RadiallyExpandingHenonMappingsGenerator(
@@ -221,12 +269,20 @@ def cli(
                 clip=clip,
                 x_midi_parameter_mappings=x_midi_parameter_mappings_set,
                 y_midi_parameter_mappings=y_midi_parameter_mappings_set,
+                source_range_x=(-1.0, 1.0),
+                source_range_y=(-1.0, 1.0),
+                midi_range_x=midi_range_x,
+                midi_range_y=midi_range_y,
             )
 
             current_iteration = hennon_mappings_generator.current_iteration
             current_orbit = hennon_mappings_generator.current_orbital_iteration
             current_data_point = hennon_mappings_generator.current_data_point
             is_new_orbit = hennon_mappings_generator.is_new_orbit()
+
+            if not continual_loop:
+                if hennon_mappings_generator.get_times_reset() > 0:
+                    break
 
             try:
                 midi_message_player.send(messages)
@@ -247,12 +303,15 @@ def cli(
             )
 
             if draw_ascii_art:
-                art_string = get_ascii_art(
+                art_string = build_art_string(
                     current_data_point,
+                    ascii_art_canvas,
                     current_iteration,
                     is_new_orbit,
-                    ascii_art_canvas,
+                    clip=clip,
                 )
+            else:
+                art_string = ""
 
             click.clear()
             screen_render = (
@@ -261,24 +320,52 @@ def cli(
             click.echo(screen_render)
 
 
-def get_ascii_art(
-    data_point: tuple[float, float],
+def build_art_string(
+    new_data_point: tuple[float, float],
+    ascii_art_canvas: AsciiArtCanvas,
     current_iteration: int,
     is_new_orbit: bool,
-    ascii_art_canvas: AsciiArtCanvas,
+    clip: bool = False,
 ) -> str:
-    if current_iteration == 0:
+    if current_iteration == 1:
         ascii_art_canvas.clear()
+    draw_data_point_on_canvas(
+        new_data_point,
+        ascii_art_canvas,
+        is_new_orbit,
+        clip=clip,
+    )
+    return ascii_art_canvas.generate_string()
+
+
+def draw_data_point_on_canvas(
+    data_point: tuple[float, float],
+    ascii_art_canvas: AsciiArtCanvas,
+    is_new_orbit: bool,
+    clip: bool = False,
+):
     x = data_point[0]
     y = data_point[1]
-    draw_point_coord = (
-        round(rescale_number_to_range(x, (-1.0, 1.0), (0, ascii_art_canvas.width - 1))),
-        round(
-            rescale_number_to_range(y, (-1.0, 1.0), (0, ascii_art_canvas.height - 1))
-        ),
-    )
-    ascii_art_canvas.draw_point(draw_point_coord[0], draw_point_coord[1], ".")
-
     if is_new_orbit:
         ascii_art_canvas.set_color("random")
-    return ascii_art_canvas.generate_string()
+    try:
+        x_canvas_coord = round(
+            rescale_number_to_range(
+                x,
+                (-1.0, 1.0),
+                (0, ascii_art_canvas.width - 1),
+                clip_value=clip,
+            )
+        )
+        y_canvas_coord = round(
+            rescale_number_to_range(
+                y,
+                (-1.0, 1.0),
+                (0, ascii_art_canvas.height - 1),
+                clip_value=clip,
+            )
+        )
+    except ValueError:
+        pass
+    else:
+        ascii_art_canvas.draw_point(x_canvas_coord, y_canvas_coord, ".")

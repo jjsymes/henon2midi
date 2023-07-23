@@ -54,14 +54,19 @@ class RadiallyExpandingHenonMappingsGenerator:
         self.henon_mapping_generator = henon_mapping_generator(
             a_parameter, starting_radius, starting_radius
         )
-        self.data_point_generator = self.radially_expending_henon_mappings_generator()
+        self.data_point_generator = self._radially_expanding_henon_mappings_generator()
         self.current_orbital_iteration = 0
         self.current_iteration = 0
         self.iteration_of_current_orbit = 0
+        self.times_reset = 0
         self.current_radius = starting_radius
         self.current_data_point = (starting_radius, starting_radius)
 
     def generate_next_data_point(self) -> tuple[float, float]:
+        """
+        Returns the next data point in the sequence.
+        If the sequence has reached the end, it will restart the sequence and return the first data point.
+        """
         try:
             data_point = next(self.data_point_generator)
         except StopIteration:
@@ -70,12 +75,20 @@ class RadiallyExpandingHenonMappingsGenerator:
         return data_point
 
     def restart_data_point_generator(self):
-        self.data_point_generator = self.radially_expending_henon_mappings_generator()
+        """
+        Creates a new data point generator. This is useful if you want to restart the sequence.
+        """
+        self.times_reset += 1
+        self.data_point_generator = self._radially_expanding_henon_mappings_generator()
 
-    def radially_expending_henon_mappings_generator(
+    def _radially_expanding_henon_mappings_generator(
         self,
     ) -> Generator[tuple[float, float], None, None]:
         self._reset_to_starting_radius()
+        self.current_iteration = 0
+        self.current_orbital_iteration = 0
+        self.iteration_of_current_orbit = 0
+
         while self.current_radius <= 1:
             self.iteration_of_current_orbit = 0
             self.current_orbital_iteration += 1
@@ -117,3 +130,12 @@ class RadiallyExpandingHenonMappingsGenerator:
 
     def is_new_orbit(self) -> bool:
         return self.iteration_of_current_orbit == 1
+
+    def get_times_reset(self) -> int:
+        return self.times_reset
+
+    def __iter__(self):
+        return self
+
+    def __next__(self):
+        return next(self.data_point_generator)
