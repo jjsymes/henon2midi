@@ -25,24 +25,18 @@ def create_midi_messages_from_data_point(
     }
 
     for x_midi_parameter_mapping in x_midi_parameter_mappings:
-        if (x > source_range_x[1] or x < source_range_x[0]) and not clip:
-            midi_values["velocity"] = 0
-        else:
-            midi_values[x_midi_parameter_mapping] = midi_value_from_data_point_value(
-                x,
-                source_range=source_range_x,
-                midi_range=midi_range_x,
-            )
+        midi_values[x_midi_parameter_mapping] = midi_value_from_data_point_value(
+            x,
+            source_range=source_range_x,
+            midi_range=midi_range_x,
+        )
 
     for y_midi_parameter_mapping in y_midi_parameter_mappings:
-        if (y > source_range_y[1] or y < source_range_y[0]) and not clip:
-            midi_values["velocity"] = 0
-        else:
-            midi_values[y_midi_parameter_mapping] = midi_value_from_data_point_value(
-                y,
-                source_range=source_range_y,
-                midi_range=midi_range_y,
-            )
+        midi_values[y_midi_parameter_mapping] = midi_value_from_data_point_value(
+            y,
+            source_range=source_range_y,
+            midi_range=midi_range_y,
+        )
 
     note_on = Message(
         "note_on",
@@ -56,7 +50,15 @@ def create_midi_messages_from_data_point(
         time=duration_ticks,
     )
 
-    note_messages = [note_on, note_off]
+    if (
+        x > source_range_x[1]
+        or x < source_range_x[0]
+        or y > source_range_y[1]
+        or y < source_range_y[0]
+    ) and not clip:
+        note_messages = [note_off]
+    else:
+        note_messages = [note_on, note_off]
     pre_note_messages = []
     post_note_messages = []
 
