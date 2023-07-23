@@ -1,4 +1,3 @@
-"""Tests for hello function."""
 import pytest
 
 from henon2midi.midi import get_default_midi_output_name

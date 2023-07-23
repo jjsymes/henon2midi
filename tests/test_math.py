@@ -1,4 +1,3 @@
-"""Tests for hello function."""
 import pytest
 
 from henon2midi.math import rescale_number_to_range

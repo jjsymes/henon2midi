@@ -3,8 +3,11 @@ import pkg_resources
 from mido import Message
 
 from henon2midi.ascii_art import AsciiArtCanvas
-from henon2midi.base import create_midi_file_from_midi_generator
-from henon2midi.henon_midi_generator import HenonMidiGenerator
+from henon2midi.base import create_midi_file_from_data_generator
+from henon2midi.data_point_to_midi_conversion import (
+    create_midi_messages_from_data_point,
+)
+from henon2midi.henon_equations import RadiallyExpandingHenonMappingsGenerator
 from henon2midi.math import rescale_number_to_range
 from henon2midi.midi import (
     MidiMessagePlayer,
@@ -173,21 +176,21 @@ def cli(
     )
     click.echo(options_string)
 
-    henon_midi_generator = HenonMidiGenerator(
-        a_parameter=a_parameter,
-        iterations_per_orbit=iterations_per_orbit,
-        starting_radius=starting_radius,
-        radial_step=radial_step,
-        note_length_ticks=ticks_per_beat // notes_per_beat,
-        sustain=sustain,
-        clip=clip,
-        x_midi_parameter_mappings=x_midi_parameter_mappings_set,
-        y_midi_parameter_mappings=y_midi_parameter_mappings_set,
-    )
-
     if midi_output_file_name:
-        mid = create_midi_file_from_midi_generator(
-            henon_midi_generator, ticks_per_beat=ticks_per_beat, bpm=bpm
+        mid = create_midi_file_from_data_generator(
+            RadiallyExpandingHenonMappingsGenerator(
+                a_parameter=a_parameter,
+                iterations_per_orbit=iterations_per_orbit,
+                starting_radius=starting_radius,
+                radial_step=radial_step,
+            ),
+            ticks_per_beat=ticks_per_beat,
+            bpm=bpm,
+            notes_per_beat=notes_per_beat,
+            sustain=sustain,
+            clip=clip,
+            x_midi_parameter_mappings_set=x_midi_parameter_mappings_set,
+            y_midi_parameter_mappings_set=y_midi_parameter_mappings_set,
         )
         mid.save(midi_output_file_name)
 
@@ -200,15 +203,31 @@ def cli(
     art_string = ""
 
     if midi_output_name:
+        hennon_mappings_generator = RadiallyExpandingHenonMappingsGenerator(
+            a_parameter=a_parameter,
+            iterations_per_orbit=iterations_per_orbit,
+            starting_radius=starting_radius,
+            radial_step=radial_step,
+        )
         midi_message_player = MidiMessagePlayer(
             midi_output_name=midi_output_name, ticks_per_beat=ticks_per_beat, bpm=bpm
         )
+
         while True:
-            messages = henon_midi_generator.next_midi_messages()
-            current_iteration = henon_midi_generator.current_iteration
-            current_orbit = (
-                current_iteration // henon_midi_generator.iterations_per_orbit
+            messages = create_midi_messages_from_data_point(
+                hennon_mappings_generator.generate_next_data_point(),
+                duration_ticks=int(ticks_per_beat / notes_per_beat),
+                sustain=sustain,
+                clip=clip,
+                x_midi_parameter_mappings=x_midi_parameter_mappings_set,
+                y_midi_parameter_mappings=y_midi_parameter_mappings_set,
             )
+
+            current_iteration = hennon_mappings_generator.current_iteration
+            current_orbit = hennon_mappings_generator.current_orbital_iteration
+            current_data_point = hennon_mappings_generator.current_data_point
+            is_new_orbit = hennon_mappings_generator.is_new_orbit()
+
             try:
                 midi_message_player.send(messages)
             except KeyboardInterrupt:
@@ -223,15 +242,15 @@ def cli(
                 exit()
             current_state_string = (
                 f"Current iteration: {current_iteration}\n"
-                f"Current orbit: {current_orbit + 1}\n"
+                f"Current orbit: {current_orbit}\n"
                 "\n"
             )
 
             if draw_ascii_art:
                 art_string = get_ascii_art(
-                    henon_midi_generator.current_data_point,
+                    current_data_point,
                     current_iteration,
-                    henon_midi_generator.iterations_per_orbit,
+                    is_new_orbit,
                     ascii_art_canvas,
                 )
 
@@ -244,8 +263,8 @@ def cli(
 
 def get_ascii_art(
     data_point: tuple[float, float],
-    current_iteration,
-    iterations_per_orbit,
+    current_iteration: int,
+    is_new_orbit: bool,
     ascii_art_canvas: AsciiArtCanvas,
 ) -> str:
     if current_iteration == 0:
@@ -260,6 +279,6 @@ def get_ascii_art(
     )
     ascii_art_canvas.draw_point(draw_point_coord[0], draw_point_coord[1], ".")
 
-    if current_iteration % iterations_per_orbit == 0:
+    if is_new_orbit:
         ascii_art_canvas.set_color("random")
     return ascii_art_canvas.generate_string()

@@ -39,14 +39,81 @@ def henon_mapping_generator(
             yield x, y
 
 
-def radially_expanding_henon_mappings_generator(
-    a_parameter: float,
-    iterations_per_orbit: int = 32,
-    starting_radius: float = 0.0,
-    radial_step: float = 0.1,
-) -> Generator[tuple[float, float], None, None]:
-    radius = starting_radius
-    while radius <= 1:
-        radius += radial_step
-        for _ in range(iterations_per_orbit):
-            yield from henon_mapping_generator(a_parameter, radius, radius)
+class RadiallyExpandingHenonMappingsGenerator:
+    def __init__(
+        self,
+        a_parameter: float,
+        iterations_per_orbit: int = 100,
+        starting_radius: float = 0.1,
+        radial_step: float = 0.05,
+    ):
+        self.a_parameter = a_parameter
+        self.iterations_per_orbit = iterations_per_orbit
+        self.starting_radius = starting_radius
+        self.radial_step = radial_step
+        self.henon_mapping_generator = henon_mapping_generator(
+            a_parameter, starting_radius, starting_radius
+        )
+        self.data_point_generator = self.radially_expending_henon_mappings_generator()
+        self.current_orbital_iteration = 0
+        self.current_iteration = 0
+        self.iteration_of_current_orbit = 0
+        self.current_radius = starting_radius
+        self.current_data_point = (starting_radius, starting_radius)
+
+    def generate_next_data_point(self) -> tuple[float, float]:
+        try:
+            data_point = next(self.data_point_generator)
+        except StopIteration:
+            self.restart_data_point_generator()
+            data_point = next(self.data_point_generator)
+        return data_point
+
+    def restart_data_point_generator(self):
+        self.data_point_generator = self.radially_expending_henon_mappings_generator()
+
+    def radially_expending_henon_mappings_generator(
+        self,
+    ) -> Generator[tuple[float, float], None, None]:
+        self._reset_to_starting_radius()
+        while self.current_radius <= 1:
+            self.iteration_of_current_orbit = 0
+            self.current_orbital_iteration += 1
+            self.henon_mapping_generator = henon_mapping_generator(
+                self.a_parameter, self.current_radius, self.current_radius
+            )
+
+            while self.iteration_of_current_orbit < self.iterations_per_orbit:
+                try:
+                    data_point = next(self.henon_mapping_generator)
+                except StopIteration:
+                    break
+                self.current_data_point = data_point
+                self.current_iteration += 1
+                self.current_data_point = data_point
+                self.iteration_of_current_orbit += 1
+                yield data_point
+
+            self.current_radius += self.radial_step
+
+    def _reset_to_starting_radius(self):
+        self.current_radius = self.starting_radius
+        self.current_data_point = (self.starting_radius, self.starting_radius)
+
+    def get_current_iteration(self) -> int:
+        return self.current_iteration
+
+    def get_current_data_point(self) -> tuple[float, float]:
+        return self.current_data_point
+
+    def get_current_radius(self) -> float:
+        return self.current_radius
+
+    def get_current_orbital_iteration(self) -> int:
+        return self.current_orbital_iteration
+
+    def get_iteration_of_current_orbit(self) -> int:
+        return self.iteration_of_current_orbit
+
+    def is_new_orbit(self) -> bool:
+        return self.iteration_of_current_orbit == 1
