@@ -22,6 +22,8 @@ class AsciiArtCanvas:
         "bright_cyan": "\033[1;36m",
         "bright_white": "\033[1;37m",
     }
+    COLORS_LIST = list(COLORS.keys())
+    random.shuffle(COLORS_LIST)
 
     def __init__(self, width: int = 120, height: int = 80):
         self.width = width
@@ -36,6 +38,10 @@ class AsciiArtCanvas:
     def set_color(self, color: str):
         if color == "random":
             color = random.choice(list(self.COLORS.keys()))
+        elif color == "next":
+            index_of_current_color = self.COLORS_LIST.index(self.current_color)
+            index_of_next_color = (index_of_current_color + 1) % len(self.COLORS_LIST)
+            color = self.COLORS_LIST[index_of_next_color]
         elif color not in self.COLORS:
             raise Exception(f"Color {color} not supported")
 
@@ -43,6 +49,7 @@ class AsciiArtCanvas:
 
     def clear(self):
         self.canvas = [[" " for _ in range(self.width)] for _ in range(self.height)]
+        self.current_color = "white"
 
     def generate_string(self):
         return (

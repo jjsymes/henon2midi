@@ -1,4 +1,5 @@
 import click
+from time import sleep
 import pkg_resources
 from mido import Message
 
@@ -19,12 +20,12 @@ from henon2midi.midi import (
 @click.version_option()
 @click.command()
 @click.option(
-    "-a",
-    "--a-parameter",
-    default=1.0,
-    help="The a parameter for the Henon mapping.",
+    "-p",
+    "--function-parameters",
+    default="1.0,1.0,1.0,1.0",
+    help="The a parameters for the Henon mapping.",
     show_default=True,
-    type=float,
+    type=str,
 )
 @click.option(
     "-i",
@@ -138,7 +139,7 @@ from henon2midi.midi import (
     type=bool,
 )
 def cli(
-    a_parameter: float,
+    function_parameters: str,
     iterations_per_orbit: int,
     midi_output_name: str,
     ticks_per_beat: int,
@@ -162,6 +163,10 @@ def cli(
     version = pkg_resources.require(package)[0].version
     version_string = package + " v" + version + "\n\n"
     click.echo(version_string)
+
+    parameters = tuple(
+        [float(parameter) for parameter in function_parameters.split(",")]
+    )
 
     midi_output_file_name = out
     if midi_output_name == "default":
@@ -201,7 +206,7 @@ def cli(
 
     options_string = (
         "Running with the following parameters. Use --help to see all available options.\n"
-        f"\ta parameter: {a_parameter}\n"
+        f"\tparameters: {parameters}\n"
         f"\titerations per orbit: {iterations_per_orbit}\n"
         f"\tmidi output name: {midi_output_name}\n"
         f"\tticks per beat: {ticks_per_beat}\n"
@@ -224,7 +229,7 @@ def cli(
     if midi_output_file_name:
         mid = create_midi_file_from_data_generator(
             RadiallyExpandingHenonMappingsGenerator(
-                a_parameter=a_parameter,
+                parameters,
                 iterations_per_orbit=iterations_per_orbit,
                 starting_radius=starting_radius,
                 radial_step=radial_step,
@@ -252,7 +257,7 @@ def cli(
 
     if midi_output_name:
         hennon_mappings_generator = RadiallyExpandingHenonMappingsGenerator(
-            a_parameter=a_parameter,
+            parameters,
             iterations_per_orbit=iterations_per_orbit,
             starting_radius=starting_radius,
             radial_step=radial_step,
@@ -299,6 +304,7 @@ def cli(
             current_state_string = (
                 f"Current iteration: {current_iteration}\n"
                 f"Current orbit: {current_orbit}\n"
+                f"Current data point: {current_data_point}\n"
                 "\n"
             )
 
@@ -318,6 +324,29 @@ def cli(
                 version_string + options_string + current_state_string + art_string
             )
             click.echo(screen_render)
+    else:
+        if draw_ascii_art:
+            while True:
+                parameters = ((parameters[0] + .01),)
+                generator = RadiallyExpandingHenonMappingsGenerator(
+                    parameters,
+                    iterations_per_orbit=iterations_per_orbit,
+                    starting_radius=starting_radius,
+                    radial_step=radial_step,
+                )
+                for data_point in generator:
+                    current_iteration = generator.current_iteration
+                    current_orbit = generator.current_orbital_iteration
+                    is_new_orbit = generator.is_new_orbit()
+                    art_string = build_art_string(
+                        data_point,
+                        ascii_art_canvas,
+                        current_iteration,
+                        is_new_orbit,
+                        clip=clip,
+                    )
+                click.clear()
+                click.echo(f"parameter a={parameters[0]}\n" + art_string)
 
 
 def build_art_string(
@@ -347,7 +376,7 @@ def draw_data_point_on_canvas(
     x = data_point[0]
     y = data_point[1]
     if is_new_orbit:
-        ascii_art_canvas.set_color("random")
+        ascii_art_canvas.set_color("next")
     try:
         x_canvas_coord = round(
             rescale_number_to_range(
@@ -368,4 +397,4 @@ def draw_data_point_on_canvas(
     except ValueError:
         pass
     else:
-        ascii_art_canvas.draw_point(x_canvas_coord, y_canvas_coord, ".")
+        ascii_art_canvas.draw_point(x_canvas_coord, y_canvas_coord, "█")

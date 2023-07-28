@@ -1,25 +1,44 @@
 from math import cos, sin
 from typing import Callable, Generator
+import random
 
 
-def equation_a(x: float, y: float, a: float) -> float:
+def equation_a(xy: tuple[float, float], parameters: tuple[float]) -> float:
+    x = xy[0]
+    y = xy[1]
+    a = parameters[0]
     return (x * cos(a)) - ((y - x**2) * sin(a))
 
 
-def equation_b(x: float, y: float, a: float) -> float:
+def equation_b(xy: tuple[float, float], parameters: tuple[float]) -> float:
+    x = xy[0]
+    y = xy[1]
+    a = parameters[0]
     return (x * sin(a)) + ((y - x**2) * cos(a))
 
 
-# TODO: try these equations
-# def four_parameter_equation_a(x: float, y: float, a: float, b: float, c: float, d: float) -> float:
-#     return (sin(a*y)) - (cos(b*x))
+def four_parameter_equation_a(
+    xy: tuple[float, float], parameters: tuple[float, float, float, float]
+) -> float:
+    x = xy[0]
+    y = xy[1]
+    a = parameters[0]
+    b = parameters[1]
+    return (sin(a * y)) - (cos(b * x))
 
-# def four_parameter_equation_b(x: float, y: float, a: float, b: float, c: float, d: float) -> float:
-#     return (sin(c*x)) - (cos(d*y))
+
+def four_parameter_equation_b(
+    xy: tuple[float, float], parameters: tuple[float, float, float, float]
+) -> float:
+    x = xy[0]
+    y = xy[1]
+    c = parameters[2]
+    d = parameters[3]
+    return (sin(c * x)) - (cos(d * y))
 
 
 def henon_mapping_generator(
-    a_parameter: float,
+    parameters: tuple[float, ...],
     initial_x: float,
     initial_y: float,
     equation_a: Callable = equation_a,
@@ -29,8 +48,8 @@ def henon_mapping_generator(
     y = initial_y
     while True:
         try:
-            x_next, y_next = equation_a(x, y, a_parameter), equation_b(
-                x, y, a_parameter
+            x_next, y_next = equation_a((x, y), parameters), equation_b(
+                (x, y), parameters
             )
             x, y = x_next, y_next
         except OverflowError:
@@ -42,17 +61,27 @@ def henon_mapping_generator(
 class RadiallyExpandingHenonMappingsGenerator:
     def __init__(
         self,
-        a_parameter: float,
+        parameters: tuple[float, ...],
         iterations_per_orbit: int = 100,
         starting_radius: float = 0.1,
         radial_step: float = 0.05,
+        equation_a: Callable = equation_a,
+        equation_b: Callable = equation_b,
+        # equation_a: Callable = four_parameter_equation_a,
+        # equation_b: Callable = four_parameter_equation_b,
     ):
-        self.a_parameter = a_parameter
+        self.parameters = parameters
+        self.equation_a = equation_a
+        self.equation_b = equation_b
         self.iterations_per_orbit = iterations_per_orbit
         self.starting_radius = starting_radius
         self.radial_step = radial_step
         self.henon_mapping_generator = henon_mapping_generator(
-            a_parameter, starting_radius, starting_radius
+            self.parameters,
+            starting_radius,
+            starting_radius,
+            self.equation_a,
+            self.equation_b,
         )
         self.data_point_generator = self._radially_expanding_henon_mappings_generator()
         self.current_orbital_iteration = 0
@@ -88,12 +117,24 @@ class RadiallyExpandingHenonMappingsGenerator:
         self.current_iteration = 0
         self.current_orbital_iteration = 0
         self.iteration_of_current_orbit = 0
+        angle = random.uniform(0, 2 * 3.141592653589793)
 
         while self.current_radius <= 1:
             self.iteration_of_current_orbit = 0
             self.current_orbital_iteration += 1
+            # random_point_at_same_radius = self._get_random_point_at_same_radius(self.current_radius)
+            random_point_at_same_radius = (self.current_radius, self.current_radius)
+            # random_point_at_same_radius = self._get_pont_at_angle(angle, radius=self.current_radius)
+            # angle += 1
+            # if angle > 2 * 3.141592653589793:
+            #     angle = 0
+
             self.henon_mapping_generator = henon_mapping_generator(
-                self.a_parameter, self.current_radius, self.current_radius
+                self.parameters,
+                random_point_at_same_radius[0],
+                random_point_at_same_radius[1],
+                self.equation_a,
+                self.equation_b,
             )
 
             while self.iteration_of_current_orbit < self.iterations_per_orbit:
@@ -108,6 +149,27 @@ class RadiallyExpandingHenonMappingsGenerator:
                 yield data_point
 
             self.current_radius += self.radial_step
+    
+    def _get_random_point_at_same_radius(self, radius: float) -> tuple[float, float]:
+        # where (0,0) is the center of the circle
+        # and (x,y) is the random point on the circle
+        import random
+        import math
+        if radius == 0:
+            return (0, 0)
+        theta = random.uniform(0, 2 * math.pi)
+        x = radius * cos(theta)
+        y = radius * sin(theta)
+        return (x, y)
+
+    def _get_pont_at_angle(self, angle: float, radius: float) -> tuple[float, float]:
+        # where (0,0) is the center of the circle
+        # and (x,y) is the random point on the circle
+        if radius == 0:
+            return (0, 0)
+        x = radius * cos(angle)
+        y = radius * sin(angle)
+        return (x, y)
 
     def _reset_to_starting_radius(self):
         self.current_radius = self.starting_radius

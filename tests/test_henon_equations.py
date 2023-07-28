@@ -16,7 +16,7 @@ def test_radially_expanding_henon_mappings_generator_initial_data_point(
     starting_radius,
 ):
     data_point_generator = RadiallyExpandingHenonMappingsGenerator(
-        a_parameter=1.333,
+        (1.333,),
         starting_radius=starting_radius,
     )
     assert data_point_generator.get_current_data_point() == (
@@ -30,7 +30,7 @@ def test_radially_expanding_henon_mappings_generator_changing_orbit():
     starting_radius = 0.0
     radial_step = 0.2
     data_point_generator = RadiallyExpandingHenonMappingsGenerator(
-        a_parameter=1.333,
+        (1.333,),
         iterations_per_orbit=iterations_per_orbit,
         starting_radius=starting_radius,
         radial_step=radial_step,
@@ -53,7 +53,7 @@ def test_radially_expanding_henon_mappings_generator_state():
     starting_radius = 0.0
     radial_step = 0.2
     data_point_generator = RadiallyExpandingHenonMappingsGenerator(
-        a_parameter=1.333,
+        (1.333,),
         iterations_per_orbit=iterations_per_orbit,
         starting_radius=starting_radius,
         radial_step=radial_step,
@@ -88,7 +88,7 @@ def test_radially_expanding_henon_mappings_generator_resets_when_generator_ends_
     starting_radius = 1.0
     radial_step = 0.2
     data_point_generator = RadiallyExpandingHenonMappingsGenerator(
-        a_parameter=1.333,
+        (1.333,),
         iterations_per_orbit=iterations_per_orbit,
         starting_radius=starting_radius,
         radial_step=radial_step,
@@ -110,7 +110,7 @@ def test_radially_expanding_henon_mappings_generator_does_not_raise_exception_wh
     starting_radius = 1.0
     radial_step = 0.2
     data_point_generator = RadiallyExpandingHenonMappingsGenerator(
-        a_parameter=1.333,
+        (1.333,),
         iterations_per_orbit=iterations_per_orbit,
         starting_radius=starting_radius,
         radial_step=radial_step,
@@ -127,7 +127,7 @@ def test_radially_expanding_henon_mappings_generator_is_iterable():
     starting_radius = 0.0
     radial_step = 0.2
     data_point_generator = RadiallyExpandingHenonMappingsGenerator(
-        a_parameter=1.333,
+        (1.333,),
         iterations_per_orbit=iterations_per_orbit,
         starting_radius=starting_radius,
         radial_step=radial_step,
