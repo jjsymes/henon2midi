@@ -65,6 +65,7 @@ def draw_data_point_on_canvas(
     is_new_orbit: bool,
     current_iteration: int,
     clip: bool = False,
+    character: str = "█",
 ):
     x = data_point[0]
     y = data_point[1]
@@ -92,4 +93,4 @@ def draw_data_point_on_canvas(
     except ValueError:
         pass
     else:
-        ascii_art_canvas.draw_point(x_canvas_coord, y_canvas_coord, "█")
+        ascii_art_canvas.draw_point(x_canvas_coord, y_canvas_coord, character)
