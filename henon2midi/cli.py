@@ -2,13 +2,12 @@ import click
 import pkg_resources
 from mido import Message
 
-from henon2midi.ascii_art import AsciiArtCanvas
+from henon2midi.ascii_art import AsciiArtCanvas, draw_data_point_on_canvas
 from henon2midi.base import create_midi_file_from_data_generator
 from henon2midi.data_point_to_midi_conversion import (
     create_midi_messages_from_data_point,
 )
 from henon2midi.henon_equations import RadiallyExpandingHenonMappingsGenerator
-from henon2midi.math import rescale_number_to_range
 from henon2midi.midi import (
     MidiMessagePlayer,
     get_available_midi_output_names,
@@ -75,7 +74,7 @@ from henon2midi.midi import (
 )
 @click.option(
     "--y-midi-parameter-mappings",
-    default="velocity,pan",
+    default="velocity",
     help="The MIDI parameter mappings for the y data point.",
     show_default=True,
     type=str,
@@ -132,6 +131,28 @@ from henon2midi.midi import (
     type=bool,
 )
 @click.option(
+    "--default-note",
+    default=64,
+    help="Default note that plays if note is not mapped to henon output.",
+    show_default=True,
+    type=int,
+)
+@click.option(
+    "--default-velocity",
+    default=64,
+    help="Default velocity of note that plays if note is not mapped to henon output.",
+    show_default=True,
+    type=int,
+)
+@click.option(
+    "--no-output",
+    is_flag=True,
+    help="Stop midi from playing, write to midi file only.",
+    type=bool,
+    default=False,
+    show_default=True,
+)
+@click.option(
     "--continual-loop",
     is_flag=True,
     help="Loop back to start when Henon data is exhausted.",
@@ -155,13 +176,15 @@ def cli(
     sustain: bool,
     clip: bool,
     continual_loop: bool,
+    default_note: int,
+    default_velocity: int,
+    no_output: bool,
 ):
     """An application that generates midi from procedurally generated Henon mappings."""
 
     package = "henon2midi"
     version = pkg_resources.require(package)[0].version
     version_string = package + " v" + version + "\n\n"
-    click.echo(version_string)
 
     midi_output_file_name = out
     if midi_output_name == "default":
@@ -173,6 +196,10 @@ def cli(
     notes_per_beat = notes_per_beat
     x_midi_parameter_mappings_set = set(x_midi_parameter_mappings.split(","))
     y_midi_parameter_mappings_set = set(y_midi_parameter_mappings.split(","))
+    if "" in x_midi_parameter_mappings_set:
+        x_midi_parameter_mappings_set.remove("")
+    if "" in y_midi_parameter_mappings_set:
+        y_midi_parameter_mappings_set.remove("")
     x_midi_value_range_split = x_midi_value_range.split(",")
     if len(x_midi_value_range_split) != 2:
         raise ValueError(
@@ -219,7 +246,8 @@ def cli(
         f"\tclip: {clip}\n"
         f"\n"
     )
-    click.echo(options_string)
+
+    click.echo(version_string + options_string)
 
     if midi_output_file_name:
         mid = create_midi_file_from_data_generator(
@@ -240,6 +268,8 @@ def cli(
             source_range_y=(-1.0, 1.0),
             midi_range_x=midi_range_x,
             midi_range_y=midi_range_y,
+            default_note=default_note,
+            default_velocity=default_velocity,
         )
         mid.save(midi_output_file_name)
 
@@ -250,22 +280,31 @@ def cli(
             ascii_art_canvas_width, ascii_art_canvas_height
         )
 
-    if midi_output_name:
+    if midi_output_name and not no_output:
         hennon_mappings_generator = RadiallyExpandingHenonMappingsGenerator(
             a_parameter=a_parameter,
             iterations_per_orbit=iterations_per_orbit,
             starting_radius=starting_radius,
             radial_step=radial_step,
         )
+
         midi_message_player = MidiMessagePlayer(
             midi_output_name=midi_output_name, ticks_per_beat=ticks_per_beat, bpm=bpm
         )
+        midi_message_player.reset()
+
+        if sustain:
+            sustain_on_msg = Message(
+                "control_change",
+                control=64,
+                value=127,
+            )
+            midi_message_player.send(sustain_on_msg)
 
         while True:
             messages = create_midi_messages_from_data_point(
                 hennon_mappings_generator.generate_next_data_point(),
                 duration_ticks=int(ticks_per_beat / notes_per_beat),
-                sustain=sustain,
                 clip=clip,
                 x_midi_parameter_mappings=x_midi_parameter_mappings_set,
                 y_midi_parameter_mappings=y_midi_parameter_mappings_set,
@@ -273,99 +312,60 @@ def cli(
                 source_range_y=(-1.0, 1.0),
                 midi_range_x=midi_range_x,
                 midi_range_y=midi_range_y,
+                default_note=default_note,
+                default_velocity=default_velocity,
             )
 
-            current_iteration = hennon_mappings_generator.current_iteration
-            current_orbit = hennon_mappings_generator.current_orbital_iteration
-            current_data_point = hennon_mappings_generator.current_data_point
+            current_iteration = hennon_mappings_generator.get_current_iteration()
+            current_orbit = hennon_mappings_generator.get_current_orbital_iteration()
+            current_data_point = hennon_mappings_generator.get_current_data_point()
             is_new_orbit = hennon_mappings_generator.is_new_orbit()
 
             if not continual_loop:
                 if hennon_mappings_generator.get_times_reset() > 0:
                     break
 
-            try:
-                midi_message_player.send(messages)
-            except KeyboardInterrupt:
-                midi_message_player.midi_output.reset()
-                for note in range(128):
-                    midi_message_player.midi_output.send(
-                        Message("note_off", note=note, velocity=0)
-                    )
-                sustain_off_msg = Message("control_change", control=64, value=0)
-                midi_message_player.midi_output.send(sustain_off_msg)
-                midi_message_player.midi_output.close()
-                exit()
+            if draw_ascii_art:
+                draw_data_point_on_canvas(
+                    current_data_point,
+                    ascii_art_canvas,
+                    is_new_orbit,
+                    current_iteration,
+                    clip=clip,
+                )
+                art_string = ascii_art_canvas.generate_string()
+            else:
+                art_string = ""
+            
             current_state_string = (
                 f"Current iteration: {current_iteration}\n"
                 f"Current orbit: {current_orbit}\n"
+                f"Current data point: {current_data_point}\n"
                 "\n"
             )
 
-            if draw_ascii_art:
-                art_string = build_art_string(
-                    current_data_point,
-                    ascii_art_canvas,
-                    current_iteration,
-                    is_new_orbit,
-                    clip=clip,
-                )
-            else:
-                art_string = ""
-
-            click.clear()
-            screen_render = (
-                version_string + options_string + current_state_string + art_string
+            refresh_terminal_screen(
+                version_string,
+                options_string,
+                current_state_string,
+                art_string,
             )
-            click.echo(screen_render)
+
+            try:
+                midi_message_player.send(messages)
+            except KeyboardInterrupt:
+                midi_message_player.reset()
+                exit()
 
 
-def build_art_string(
-    new_data_point: tuple[float, float],
-    ascii_art_canvas: AsciiArtCanvas,
-    current_iteration: int,
-    is_new_orbit: bool,
-    clip: bool = False,
-) -> str:
-    if current_iteration == 1:
-        ascii_art_canvas.clear()
-    draw_data_point_on_canvas(
-        new_data_point,
-        ascii_art_canvas,
-        is_new_orbit,
-        clip=clip,
-    )
-    return ascii_art_canvas.generate_string()
-
-
-def draw_data_point_on_canvas(
-    data_point: tuple[float, float],
-    ascii_art_canvas: AsciiArtCanvas,
-    is_new_orbit: bool,
-    clip: bool = False,
+def refresh_terminal_screen(
+    version_string: str,
+    options_string: str,
+    current_state_string: str="",
+    art_string: str="",
 ):
-    x = data_point[0]
-    y = data_point[1]
-    if is_new_orbit:
-        ascii_art_canvas.set_color("random")
-    try:
-        x_canvas_coord = round(
-            rescale_number_to_range(
-                x,
-                (-1.0, 1.0),
-                (0, ascii_art_canvas.width - 1),
-                clip_value=clip,
-            )
-        )
-        y_canvas_coord = round(
-            rescale_number_to_range(
-                y,
-                (-1.0, 1.0),
-                (0, ascii_art_canvas.height - 1),
-                clip_value=clip,
-            )
-        )
-    except ValueError:
-        pass
-    else:
-        ascii_art_canvas.draw_point(x_canvas_coord, y_canvas_coord, ".")
+    click.clear()
+    screen_render = (
+        version_string + options_string + current_state_string + art_string
+    )
+    click.echo(screen_render)

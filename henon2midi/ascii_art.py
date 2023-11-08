@@ -1,5 +1,6 @@
 import random
 
+from henon2midi.math import rescale_number_to_range
 
 class AsciiArtCanvas:
     RESET_COLOR = "\033[0m"
@@ -31,7 +32,7 @@ class AsciiArtCanvas:
 
     def draw_point(self, x: int, y: int, character: str = "X"):
         color_escape_code = self.COLORS[self.current_color]
-        self.canvas[y][x] = color_escape_code + character
+        self.canvas[-y][x] = color_escape_code + character
 
     def set_color(self, color: str):
         if color == "random":
@@ -50,3 +51,39 @@ class AsciiArtCanvas:
             + "\n".join(["".join(row) for row in self.canvas])
             + self.RESET_COLOR
         )
+
+
+def draw_data_point_on_canvas(
+    data_point: tuple[float, float],
+    ascii_art_canvas: AsciiArtCanvas,
+    is_new_orbit: bool,
+    current_iteration: int,
+    clip: bool = False,
+):
+    x = data_point[0]
+    y = data_point[1]
+    if current_iteration == 1:
+        ascii_art_canvas.clear()
+    if is_new_orbit:
+        ascii_art_canvas.set_color("random")
+    try:
+        x_canvas_coord = round(
+            rescale_number_to_range(
+                x,
+                (-1.0, 1.0),
+                (0, ascii_art_canvas.width - 1),
+                clip_value=clip,
+            )
+        )
+        y_canvas_coord = round(
+            rescale_number_to_range(
+                y,
+                (-1.0, 1.0),
+                (0, ascii_art_canvas.height - 1),
+                clip_value=clip,
+            )
+        )
+    except ValueError:
+        pass
+    else:
+        ascii_art_canvas.draw_point(x_canvas_coord, y_canvas_coord, "█")
