@@ -23,6 +23,8 @@ class AsciiArtCanvas:
         "bright_cyan": "\033[1;36m",
         "bright_white": "\033[1;37m",
     }
+    COLORS_LIST = list(COLORS.keys())
+    random.shuffle(COLORS_LIST)
 
     def __init__(self, width: int = 120, height: int = 80):
         self.width = width
@@ -37,6 +39,10 @@ class AsciiArtCanvas:
     def set_color(self, color: str):
         if color == "random":
             color = random.choice(list(self.COLORS.keys()))
+        elif color == "next":
+            index_of_current_color = self.COLORS_LIST.index(self.current_color)
+            index_of_next_color = (index_of_current_color + 1) % len(self.COLORS_LIST)
+            color = self.COLORS_LIST[index_of_next_color]
         elif color not in self.COLORS:
             raise Exception(f"Color {color} not supported")
 
@@ -65,7 +71,7 @@ def draw_data_point_on_canvas(
     if current_iteration == 1:
         ascii_art_canvas.clear()
     if is_new_orbit:
-        ascii_art_canvas.set_color("random")
+        ascii_art_canvas.set_color("next")
     try:
         x_canvas_coord = round(
             rescale_number_to_range(
