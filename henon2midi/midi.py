@@ -50,9 +50,20 @@ class MidiMessagePlayer:
         reset_pan_msg = Message("control_change", control=10, value=64)
         reset_all_controllers_msg = Message("control_change", control=121, value=0)
         all_notes_off_msg = Message("control_change", control=123, value=0)
-        note_off_msgs = [Message("note_off", note=note, velocity=0) for note in range(128)]
-    
-        self.send([sustain_off_msg, reset_modulation_msg, reset_pan_msg, reset_all_controllers_msg, all_notes_off_msg] + note_off_msgs)
+        note_off_msgs = [
+            Message("note_off", note=note, velocity=0) for note in range(128)
+        ]
+
+        self.send(
+            [
+                sustain_off_msg,
+                reset_modulation_msg,
+                reset_pan_msg,
+                reset_all_controllers_msg,
+                all_notes_off_msg,
+            ]
+            + note_off_msgs
+        )
 
 
 def get_available_midi_output_names():

@@ -1,4 +1,4 @@
-from mido import MidiFile, Message
+from mido import Message, MidiFile
 
 from henon2midi.data_point_to_midi_conversion import (
     create_midi_messages_from_data_point,

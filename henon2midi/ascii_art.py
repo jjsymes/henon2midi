@@ -2,6 +2,7 @@ import random
 
 from henon2midi.math import rescale_number_to_range
 
+
 class AsciiArtCanvas:
     RESET_COLOR = "\033[0m"
 

@@ -1,21 +1,22 @@
+from typing import List, Tuple, Set
 from mido import Message
 
 from henon2midi.math import rescale_number_to_range
 
 
 def create_midi_messages_from_data_point(
-    datapoint: tuple[float, float],
+    datapoint: Tuple[float, float],
     duration_ticks: float = 960,
     clip: bool = False,
-    x_midi_parameter_mappings: set[str] = {"note"},
-    y_midi_parameter_mappings: set[str] = {"velocity"},
-    source_range_x: tuple[float, float] = (-1.0, 1.0),
-    source_range_y: tuple[float, float] = (-1.0, 1.0),
-    midi_range_x: tuple[int, int] = (0, 127),
-    midi_range_y: tuple[int, int] = (0, 127),
+    x_midi_parameter_mappings: Set[str] = {"note"},
+    y_midi_parameter_mappings: Set[str] = {"velocity"},
+    source_range_x: Tuple[float, float] = (-1.0, 1.0),
+    source_range_y: Tuple[float, float] = (-1.0, 1.0),
+    midi_range_x: Tuple[int, int] = (0, 127),
+    midi_range_y: Tuple[int, int] = (0, 127),
     default_note: int = 64,
     default_velocity: int = 64,
-) -> list[Message]:
+) -> List[Message]:
     x = datapoint[0]
     y = datapoint[1]
 
@@ -46,7 +47,7 @@ def create_midi_messages_from_data_point(
         "portamento": 37,
         "data_entry": 38,
         "sustain": 64,
-        "portamento": 65,
+        "portamento_65": 65,
         "sostenuto": 66,
         "soft_pedal": 67,
         "legato_footswitch": 68,
@@ -71,7 +72,7 @@ def create_midi_messages_from_data_point(
         "effects_2_depth": 92,
         "effects_3_depth": 93,
         "effects_4_depth": 94,
-        "effects_5_depth": 95
+        "effects_5_depth": 95,
     }
 
     for x_midi_parameter_mapping in x_midi_parameter_mappings:
@@ -109,8 +110,8 @@ def create_midi_messages_from_data_point(
         note_messages = [note_off]
     else:
         note_messages = [note_on, note_off]
-    pre_note_messages = []
-    post_note_messages = []
+    pre_note_messages: List[Message] = []
+    post_note_messages: List[Message] = []
 
     for midi_value_name, midi_value in midi_values.items():
         if midi_value_name == "note" or midi_value_name == "velocity":

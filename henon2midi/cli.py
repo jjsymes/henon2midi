@@ -336,7 +336,7 @@ def cli(
                 art_string = ascii_art_canvas.generate_string()
             else:
                 art_string = ""
-            
+
             current_state_string = (
                 f"Current iteration: {current_iteration}\n"
                 f"Current orbit: {current_orbit}\n"
@@ -361,11 +361,9 @@ def cli(
 def refresh_terminal_screen(
     version_string: str,
     options_string: str,
-    current_state_string: str="",
-    art_string: str="",
+    current_state_string: str = "",
+    art_string: str = "",
 ):
     click.clear()
-    screen_render = (
-        version_string + options_string + current_state_string + art_string
-    )
+    screen_render = version_string + options_string + current_state_string + art_string
     click.echo(screen_render)
