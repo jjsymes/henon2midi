@@ -10,7 +10,6 @@ dependencies = [
     "mido",
     "click",
     "python-rtmidi",
-    "colorama"
 ]
 classifiers = [
     "Programming Language :: Python :: 3",
@@ -44,6 +43,9 @@ exclude = ["docs*", "tests*"]
 
 [tool.coverage.run]
 source = ["henon2midi"]
+
+[tool.isort]
+profile = "black"
 
 [tool.pytest.ini_options]
 addopts = "--cov henon2midi --cov-report term-missing --cov-report xml --cov-report html --cov-branch"

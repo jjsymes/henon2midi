@@ -74,9 +74,35 @@ activate: ## Activate the virtual environment
 	@echo "Activating virtualenv..."
 	. ./$(ENV_PREFIX)activate
 
+HENON := $(ENV_PREFIX)python -m henon2midi
+
 .PHONY: run
-run: ## Run the project
-	$(ENV_PREFIX)python -m henon2midi $(EXTRA_ARGS)
+run: ## Run the historical defaults. About 100 orbits; it also plays MIDI. EXTRA_ARGS="..." adds flags.
+	$(HENON) $(EXTRA_ARGS)
+
+.PHONY: example-classic
+example-classic: ## Draw a short classic orbit. No MIDI device needed.
+	$(HENON) --visualize-only -i 8 -s 0.1 $(EXTRA_ARGS)
+
+.PHONY: example-sweep
+example-sweep: ## Classic map. Each orbit starts one radian further around the circle.
+	$(HENON) --visualize-only --start sweep -i 6 -s 0.1 $(EXTRA_ARGS)
+
+.PHONY: example-four
+example-four: ## Four-parameter map, coefficients 2 2 2 2, swept start. Draws only.
+	$(HENON) --visualize-only --map four-parameter -p 2,2,2,2 --start sweep -i 8 -s 0.1 $(EXTRA_ARGS)
+
+.PHONY: example-rotation
+example-rotation: ## Custom rotation, x'=y and y'=-x. No -p. Draws only.
+	$(HENON) --visualize-only --x-prime=y --y-prime=-x --start sweep -i 8 -s 0.2 $(EXTRA_ARGS)
+
+.PHONY: example-file
+example-file: ## Write sweep.mid and play it. Needs a MIDI output. make list-midi shows the names.
+	$(HENON) --out sweep.mid --start sweep -i 8 -s 0.2 $(EXTRA_ARGS)
+
+.PHONY: list-midi
+list-midi: ## Print MIDI output names and exit.
+	$(HENON) --list-midi-outputs
 
 .PHONY: build
 build: ## Build the project
